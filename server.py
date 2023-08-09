@@ -63,7 +63,8 @@ def handleClient(conn, addr):
             elif message != "":
                 print(f"[{addr}] ({nickname}): {message}")
                 broadcast(f"{nickname}: {message}".encode(FORMAT))
-        except:
+        except Exception as e:
+            print(e)
             connected = False
     conn.send(f"You have left the chat".encode(FORMAT))
     conn.close()
