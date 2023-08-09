@@ -19,6 +19,9 @@ def broadcast(message):
     for clients in clientsList:
         clients.send(message)
 
+def broadcast_file(message, nickname, private_connections, conn, addr):
+    file_path = message[6:]
+
 def private_chat(message, nickname, private_connections, conn, addr):
     at_index = message.find("@")  # Find the index of the "@" symbol
     space_index = message.find(" ", at_index)  # Find the index of the first spacing character after the "@"
@@ -58,8 +61,26 @@ def handleClient(conn, addr):
             message = conn.recv(1024).decode(FORMAT)
             if message == DISCONNECT_MESSAGE:
                 connected = False
-            if message.startswith("@"):
+            elif message.startswith("@"):
                 private_chat(message, nickname, private_connections, conn, addr)
+            elif message.startswith("!FILE"):
+                file_name = message[6:]
+                # receive file content and buffer it
+                file_content = b""
+                while True:
+                    file_data = conn.recv(1024)
+                    if not file_data:
+                        break
+                    file_content += file_data
+                
+                # write the file to disk, if file does not exist, create it
+                file = open("received-files/" + file_name, "wb")
+
+                file.write(file_content)
+                file.close()
+                # send an acknowledgement to the client
+                conn.send("File received".encode(FORMAT))
+
             elif message != "":
                 print(f"[{addr}] ({nickname}): {message}")
                 broadcast(f"{nickname}: {message}".encode(FORMAT))

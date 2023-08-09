@@ -30,19 +30,44 @@ def receive():
             client.close()
                 
 def send(msg):
-        message = msg.encode(FORMAT)
-        messageLength = len(message)
-        sendLength = str(messageLength).encode(FORMAT)
-        sendLength += b' ' * (HEADER - len(sendLength))
-        client.send(sendLength)
-        client.send(message)
+    message = msg.encode(FORMAT)
+    messageLength = len(message)
+    sendLength = str(messageLength).encode(FORMAT)
+    sendLength += b' ' * (HEADER - len(sendLength))
+    client.send(sendLength)
+    client.send(message)
+
+def send_text(message):
+    client.send(message.encode(FORMAT))
+
+def send_file(file_path):
+    # check if file exists
+    try:
+        file = open(file_path, "rb")
+    except:
+        print("File not found")
+        return
+    
+    # send the file
+    file_data = file.read(1024)
+    while file_data:
+        client.send(file_data)
+        file_data = file.read(1024)
+    file.close()
+    client.shutdown(socket.SHUT_WR)
+    print("File sent")
 
 def write():
     global connected
     while connected:
         try:
             message = str(input())
-            client.send(message.encode(FORMAT))
+            if message.startswith("!FILE"):
+                send_text(f"!FILE {message[6:]}")
+                send_file(message[6:])
+            else:
+                send_text(message)
+
             if message == DISCONNECT_MESSAGE:
                 connected = False
         except:
