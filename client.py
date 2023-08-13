@@ -7,6 +7,7 @@ FORMAT = "utf-8"
 DISCONNECT_MESSAGE = "!DISCONNECT"
 SERVER = "192.168.56.1"
 ADDR = (SERVER, PORT)
+DOWNLOADS_FOLDER = "downloads/"
 
 client = socket.socket(socket.AF_INET, socket.SOCK_STREAM) #sock stream is TCP protocol
 client.connect(ADDR)
@@ -22,6 +23,15 @@ def receive():
             message = client.recv(1024).decode(FORMAT)
             if message == "!NICK":
                 client.send(nickname.encode(FORMAT))
+            elif message.startswith("!UPLOAD"):
+                file_path = message[8:]
+                file = open(DOWNLOADS_FOLDER + file_path, "wb")
+                file_data = client.recv(1024)
+                while file_data:
+                    file.write(file_data)
+                    file_data = client.recv(1024)
+                file.close()
+                print("File downloaded from server.")
             elif message != "":
                 print(message)
         except:
@@ -43,11 +53,12 @@ def send_text(message):
 def send_file(file_path):
     # check if file exists
     try:
+        print(file_path)
         file = open(file_path, "rb")
     except:
         print("File not found")
         return
-    
+
     # send the file
     file_data = file.read(1024)
     while file_data:
@@ -55,16 +66,16 @@ def send_file(file_path):
         file_data = file.read(1024)
     file.close()
     client.shutdown(socket.SHUT_WR)
-    print("File sent")
+    print("File sent to server.")
 
 def write():
     global connected
     while connected:
         try:
             message = str(input())
-            if message.startswith("!FILE"):
-                send_text(f"!FILE {message[6:]}")
-                send_file(message[6:])
+            if message.startswith("!UPLOAD"):
+                send_text(f"!UPLOAD {message[8:]}")
+                send_file(message[8:])
             else:
                 send_text(message)
 

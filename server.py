@@ -7,6 +7,7 @@ SERVER = socket.gethostbyname(socket.gethostname())
 ADDR = (SERVER, PORT)
 FORMAT = "utf-8"
 DISCONNECT_MESSAGE = "bye"
+UPLOADS_FOLDER = "uploads/"
 
 server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 server.bind(ADDR)
@@ -18,9 +19,6 @@ private_connections = []
 def broadcast(message):
     for clients in clientsList:
         clients.send(message)
-
-def broadcast_file(message, nickname, private_connections, conn, addr):
-    file_path = message[6:]
 
 def private_chat(message, nickname, private_connections, conn, addr):
     at_index = message.find("@")  # Find the index of the "@" symbol
@@ -63,8 +61,8 @@ def handleClient(conn, addr):
                 connected = False
             elif message.startswith("@"):
                 private_chat(message, nickname, private_connections, conn, addr)
-            elif message.startswith("!FILE"):
-                file_name = message[6:]
+            elif message.startswith("!UPLOAD"):
+                file_name = message[8:]
                 # receive file content and buffer it
                 file_content = b""
                 while True:
@@ -74,12 +72,30 @@ def handleClient(conn, addr):
                     file_content += file_data
                 
                 # write the file to disk, if file does not exist, create it
-                file = open("received-files/" + file_name, "wb")
+                file = open(UPLOADS_FOLDER + file_name, "wb")
 
                 file.write(file_content)
                 file.close()
                 # send an acknowledgement to the client
-                conn.send("File received".encode(FORMAT))
+                # conn.send("".encode(FORMAT))
+                broadcast(f"{nickname} sent a file: {file_name}".encode(FORMAT))
+            elif message.startswith("!DOWNLOAD"):
+                file_name = message[10:]
+                try:
+                    file = open(UPLOADS_FOLDER + file_name, "rb")
+                except:
+                    conn.send("File not found".encode(FORMAT))
+                    return
+                
+                # send the file
+                conn.send(f"!UPLOAD {file_name}".encode(FORMAT))
+                file_data = file.read(1024)
+                while file_data:
+                    conn.send(file_data)
+                    file_data = file.read(1024)
+                file.close()
+                conn.shutdown(socket.SHUT_WR)
+                print("File sent to client.")
 
             elif message != "":
                 print(f"[{addr}] ({nickname}): {message}")
