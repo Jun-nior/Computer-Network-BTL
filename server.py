@@ -1,5 +1,6 @@
 import socket
 import threading
+import os
 
 HEADER = 64
 PORT = 5070
@@ -63,14 +64,22 @@ def handleClient(conn, addr):
                 private_chat(message, nickname, private_connections, conn, addr)
             elif message.startswith("!UPLOAD"):
                 file_name = message[8:]
+                file_size_msg = conn.recv(1024).decode(FORMAT)
+                print(file_size_msg)
+                file_size = int(file_size_msg[10:])
+
                 # receive file content and buffer it
                 file_content = b""
+                accum_size = 0
                 while True:
                     file_data = conn.recv(1024)
                     if not file_data:
                         break
+                    accum_size += len(file_data)
                     file_content += file_data
-                
+                    if accum_size >= file_size:
+                        break
+
                 # write the file to disk, if file does not exist, create it
                 file = open(UPLOADS_FOLDER + file_name, "wb")
 
@@ -89,12 +98,13 @@ def handleClient(conn, addr):
                 
                 # send the file
                 conn.send(f"!UPLOAD {file_name}".encode(FORMAT))
+                conn.send(f"FILE_SIZE {os.path.getsize(UPLOADS_FOLDER + file_name)}".encode(FORMAT))
                 file_data = file.read(1024)
                 while file_data:
                     conn.send(file_data)
                     file_data = file.read(1024)
                 file.close()
-                conn.shutdown(socket.SHUT_WR)
+                # conn.shutdown(socket.SHUT_WR)
                 print("File sent to client.")
 
             elif message != "":

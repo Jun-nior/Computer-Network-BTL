@@ -1,5 +1,6 @@
 import socket
 import threading
+import os
 
 HEADER = 64
 PORT = 5070
@@ -25,11 +26,17 @@ def receive():
                 client.send(nickname.encode(FORMAT))
             elif message.startswith("!UPLOAD"):
                 file_path = message[8:]
+                file_size_msg = client.recv(1024).decode(FORMAT)
+                file_size = int(file_size_msg[10:])
                 file = open(DOWNLOADS_FOLDER + file_path, "wb")
                 file_data = client.recv(1024)
                 while file_data:
                     file.write(file_data)
+                    accum_len = len(file_data)
+                    if accum_len >= file_size:
+                        break
                     file_data = client.recv(1024)
+
                 file.close()
                 print("File downloaded from server.")
             elif message != "":
@@ -60,12 +67,14 @@ def send_file(file_path):
         return
 
     # send the file
+    file_size = os.path.getsize(file_path)
+    send_text(f"FILE_SIZE {file_size}")
     file_data = file.read(1024)
     while file_data:
         client.send(file_data)
         file_data = file.read(1024)
     file.close()
-    client.shutdown(socket.SHUT_WR)
+    # client.shutdown(socket.SHUT_WR)
     print("File sent to server.")
 
 def write():
